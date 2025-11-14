@@ -67,7 +67,7 @@ const App: React.FC = () => {
       <div className="w-full max-w-4xl mx-auto">
         <header className="text-center my-8">
           <h1 className="text-4xl sm:text-5xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-teal-400">
-            Bank Statement Analyzer
+            Bank Statement Analyzer With OCR
           </h1>
           <p className="mt-4 text-lg text-gray-400">
             Upload one or more bank statement pages (PDFs or images) to instantly extract and categorize transactions with Gemini Integration.
