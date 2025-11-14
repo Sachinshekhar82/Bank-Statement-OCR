@@ -70,7 +70,7 @@ const App: React.FC = () => {
             Bank Statement Analyzer
           </h1>
           <p className="mt-4 text-lg text-gray-400">
-            Upload one or more bank statement pages (PDFs or images) to instantly extract and categorize transactions with Gemini.
+            Upload one or more bank statement pages (PDFs or images) to instantly extract and categorize transactions with Gemini Integration.
           </p>
         </header>
 
@@ -112,7 +112,7 @@ const App: React.FC = () => {
         </main>
 
         <footer className="text-center mt-12 text-gray-500 text-sm">
-          <p>Powered by Google Gemini. For demonstration purposes only.</p>
+          <p>Powered by Sachin Singh.</p>
         </footer>
       </div>
     </div>
