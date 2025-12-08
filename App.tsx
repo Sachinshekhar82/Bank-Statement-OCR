@@ -148,7 +148,7 @@ const App: React.FC = () => {
         </main>
 
         <footer className="text-center mt-12 mb-8 text-gray-500 text-xs">
-          <p>Powered by Google Gemini. Data processed in browser memory.</p>
+          <p>Powered by Sachin Singh. Data processed in browser memory.</p>
         </footer>
       </div>
     </div>
