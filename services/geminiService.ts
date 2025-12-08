@@ -57,6 +57,45 @@ const transactionSchema = {
     required: ['Date', 'Description', 'Amount', 'Category']
 };
 
+export const verifyUserIdentity = async (referenceImageBase64: string, currentImageBase64: string): Promise<boolean> => {
+    if (!process.env.API_KEY) {
+        throw new Error("API_KEY environment variable not set");
+    }
+
+    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+
+    const prompt = "You are a biometric security system. Compare the person in the first image (Reference) with the person in the second image (Live Feed). Determine if they are the same person. Ignore background differences, lighting, or minor accessories (glasses). Strictness: High. Return a JSON object with a single boolean field 'match' set to true only if they are the same person.";
+
+    try {
+        const response = await ai.models.generateContent({
+            model: 'gemini-2.5-flash',
+            contents: {
+                parts: [
+                    { text: prompt },
+                    { inlineData: { mimeType: 'image/jpeg', data: referenceImageBase64 } },
+                    { inlineData: { mimeType: 'image/jpeg', data: currentImageBase64 } }
+                ]
+            },
+            config: {
+                responseMimeType: "application/json",
+                responseSchema: {
+                    type: Type.OBJECT,
+                    properties: {
+                        match: { type: Type.BOOLEAN }
+                    },
+                    required: ['match']
+                }
+            }
+        });
+
+        const jsonResponse = JSON.parse(response.text);
+        return jsonResponse.match === true;
+    } catch (error) {
+        console.error("Face verification failed:", error);
+        return false;
+    }
+};
+
 export const analyzeStatements = async (
   statementFiles: File[],
   onProgress: (processedCount: number, total: number, status: string) => void
