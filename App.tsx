@@ -1,13 +1,18 @@
 
 import React, { useState } from 'react';
-import { Transaction } from './types';
+import { Transaction, CurrencyCode } from './types';
 import FileUpload from './components/FileUpload';
 import TransactionTable from './components/TransactionTable';
 import TransactionSummary from './components/TransactionSummary';
 import Loader from './components/Loader';
+import AuthScreen from './components/AuthScreen';
+import Analytics from './components/Analytics';
 import { analyzeStatements } from './services/geminiService';
+import { CURRENCIES } from './currency';
 
 const App: React.FC = () => {
+  const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
+  const [currency, setCurrency] = useState<CurrencyCode>('USD');
   const [statementFiles, setStatementFiles] = useState<File[]>([]);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(false);
@@ -62,27 +67,50 @@ const App: React.FC = () => {
     setIsLoading(false);
   }
 
+  if (!isAuthenticated) {
+    return <AuthScreen onAuthenticated={() => setIsAuthenticated(true)} />;
+  }
+
   return (
     <div className="min-h-screen bg-gray-900 text-gray-100 flex flex-col items-center p-4 sm:p-6 lg:p-8">
-      <div className="w-full max-w-4xl mx-auto">
-        <header className="text-center my-8">
-          <h1 className="text-4xl sm:text-5xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-teal-400">
-            Bank Statement Analyzer With OCR
-          </h1>
-          <p className="mt-4 text-lg text-gray-400">
-            Upload one or more bank statement pages (PDFs or images) to instantly extract and categorize transactions with Gemini Integration.
-          </p>
+      <div className="w-full max-w-5xl mx-auto">
+        <header className="flex flex-col md:flex-row md:justify-between md:items-center mb-10 space-y-4 md:space-y-0">
+            <div>
+                 <h1 className="text-3xl sm:text-4xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-teal-400">
+                    Bank Statement Analyzer
+                 </h1>
+                 <p className="mt-2 text-sm text-gray-400 max-w-lg">
+                    Securely extract, visualize, and analyze your finances.
+                 </p>
+            </div>
+            
+            <div className="flex items-center space-x-2 bg-gray-800 p-1.5 rounded-lg border border-gray-700">
+                <span className="px-3 text-sm text-gray-400 font-medium">Currency:</span>
+                <select 
+                    value={currency} 
+                    onChange={(e) => setCurrency(e.target.value as CurrencyCode)}
+                    className="bg-gray-700 text-white text-sm rounded-md px-3 py-1.5 border-none focus:ring-2 focus:ring-blue-500 outline-none cursor-pointer hover:bg-gray-600 transition-colors"
+                >
+                    {Object.values(CURRENCIES).map((c) => (
+                        <option key={c.code} value={c.code}>{c.code} ({c.symbol})</option>
+                    ))}
+                </select>
+            </div>
         </header>
 
-        <main className="bg-gray-800/50 p-6 sm:p-8 rounded-xl shadow-2xl border border-gray-700">
+        <main className="bg-gray-800/40 p-6 sm:p-8 rounded-2xl shadow-2xl border border-gray-700 backdrop-blur-sm">
           {!isLoading && transactions.length === 0 && (
-              <div className="flex flex-col items-center space-y-6">
+              <div className="flex flex-col items-center space-y-8 py-8">
                 <FileUpload onFileSelect={handleFileSelect} disabled={isLoading} />
-                {error && <p className="text-red-400 mt-4 animate-fade-in">{error}</p>}
+                {error && (
+                    <div className="p-4 bg-red-900/30 border border-red-500/50 rounded-lg text-red-200 animate-fade-in text-center max-w-lg">
+                        {error}
+                    </div>
+                )}
                 <button
                   onClick={handleProcessStatement}
                   disabled={statementFiles.length === 0 || isLoading}
-                  className="w-full sm:w-auto px-8 py-3 text-lg font-semibold text-white bg-blue-600 rounded-lg shadow-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-75 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed disabled:bg-gray-600"
+                  className="w-full sm:w-auto px-10 py-4 text-lg font-bold text-white bg-gradient-to-r from-blue-600 to-blue-500 rounded-xl shadow-lg hover:shadow-blue-500/30 hover:scale-[1.02] focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none disabled:shadow-none"
                 >
                   {isLoading ? "Processing..." : "Analyze Statement(s)"}
                 </button>
@@ -90,29 +118,37 @@ const App: React.FC = () => {
           )}
 
           {isLoading && (
-            <Loader 
-              totalFiles={progress?.total}
-              processedFiles={progress?.processed}
-              statusMessage={progress?.message}
-            />
+            <div className="py-20">
+                <Loader 
+                totalFiles={progress?.total}
+                processedFiles={progress?.processed}
+                statusMessage={progress?.message}
+                />
+            </div>
           )}
           
           {!isLoading && transactions.length > 0 && (
-            <div className="flex flex-col items-center">
-                <TransactionSummary transactions={transactions} />
-                <TransactionTable transactions={transactions} />
-                 <button
-                  onClick={handleReset}
-                  className="mt-8 px-8 py-3 text-lg font-semibold text-white bg-gray-600 rounded-lg shadow-md hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-opacity-75 transition-all duration-300"
-                >
-                  Analyze Another Statement
-                </button>
+            <div className="flex flex-col">
+                <div className="flex justify-end mb-4">
+                     <button
+                        onClick={handleReset}
+                        className="text-sm text-gray-400 hover:text-white underline decoration-gray-500 hover:decoration-white transition-all"
+                     >
+                        Upload different statement
+                    </button>
+                </div>
+
+                <TransactionSummary transactions={transactions} currency={currency} />
+                
+                <Analytics transactions={transactions} currency={currency} />
+
+                <TransactionTable transactions={transactions} currency={currency} />
             </div>
           )}
         </main>
 
-        <footer className="text-center mt-12 text-gray-500 text-sm">
-          <p>Powered by Sachin Singh.</p>
+        <footer className="text-center mt-12 mb-8 text-gray-500 text-xs">
+          <p>Powered by Google Gemini. Data processed in browser memory.</p>
         </footer>
       </div>
     </div>
