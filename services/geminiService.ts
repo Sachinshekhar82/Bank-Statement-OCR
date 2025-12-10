@@ -131,15 +131,18 @@ export const createFinancialChat = (transactions: Transaction[]) => {
     }
     const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
     
+    // Limit to 300 recent transactions to prevent token overflow/errors
+    const recentTransactions = transactions.slice(0, 300);
+    
     // Create a concise CSV-like context to save tokens while maintaining readability
-    const transactionContext = transactions.map(t => 
-        `ID:${t.id.substring(0,4)}|${t.Date}|${t.Description}|${t.Amount}|${t.Category}|Sub:${t.IsSubscription}`
+    const transactionContext = recentTransactions.map(t => 
+        `${t.Date}|${t.Description}|${t.Amount}|${t.Category}|Sub:${t.IsSubscription}`
     ).join('\n');
 
     const systemInstruction = `You are a dedicated financial assistant for the "FinAI Cashbook" app.
-    You have direct access to the user's transaction data (CSV format: ID|Date|Desc|Amount|Cat|Sub).
+    You have direct access to the user's transaction data (CSV format: Date|Desc|Amount|Cat|Sub).
     
-    DATA:
+    DATA (Recent 300 records):
     ${transactionContext}
     
     CAPABILITIES:
@@ -153,8 +156,9 @@ export const createFinancialChat = (transactions: Transaction[]) => {
     - Be concise. Use markdown tables for lists of transactions.
     - If no data matches the query, explicitly say "No matching transactions found in your records."`;
 
+    // Switched to gemini-2.5-flash for better stability and lower latency for chat interactions
     return ai.chats.create({
-        model: 'gemini-3-pro-preview',
+        model: 'gemini-2.5-flash',
         config: {
             systemInstruction: systemInstruction,
         }

@@ -33,6 +33,7 @@ const ChatBot: React.FC<ChatBotProps> = ({ transactions }) => {
             setMessages([{ role: 'model', text: "Hello! I've analyzed your new transaction data. Ask me anything about your spending, specific dates, or categories." }]);
         } catch (e) {
             console.error("Failed to init chat", e);
+            setMessages([{ role: 'model', text: "Warning: Could not initialize AI chat context. Please refresh." }]);
         }
     }
   }, [transactions]);
@@ -83,9 +84,11 @@ const ChatBot: React.FC<ChatBotProps> = ({ transactions }) => {
         const responseText = response.text || "I couldn't process that request.";
         
         setMessages(prev => [...prev, { role: 'model', text: responseText }]);
-    } catch (error) {
+    } catch (error: any) {
         console.error("Chat Error:", error);
-        setMessages(prev => [...prev, { role: 'model', text: "Sorry, I encountered an error connecting to the AI." }]);
+        // Display specific error message to user
+        const errorMessage = error.message || "Unknown error connecting to AI.";
+        setMessages(prev => [...prev, { role: 'model', text: `Error: ${errorMessage}. Please try again.` }]);
     } finally {
         setIsLoading(false);
     }
@@ -146,7 +149,7 @@ const ChatBot: React.FC<ChatBotProps> = ({ transactions }) => {
                         <h3 className="font-bold text-white text-sm">FinAI Assistant</h3>
                         <p className="text-[10px] text-green-400 flex items-center gap-1">
                             <span className="w-1.5 h-1.5 rounded-full bg-green-400"></span>
-                            Online • Gemini 3.0 Pro
+                            Online • Gemini 2.5 Flash
                         </p>
                     </div>
                 </div>
