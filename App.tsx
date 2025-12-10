@@ -315,7 +315,7 @@ const App: React.FC = () => {
         />
 
         <footer className="text-center mt-20 mb-8 text-gray-600 text-xs tracking-wider uppercase">
-          <p>Secured by Gemini AI • Client-Side Processing Only</p>
+          <p>Secured by Gemini AI • Powered by Sachin Singh</p>
         </footer>
       </div>
     </div>
