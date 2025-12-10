@@ -2,6 +2,7 @@
   "name": "Copy of Bank Statement Analyzer",
   "description": "An OCR tool powered by Gemini to extract transactions from bank statements. Upload a PDF or image of your statement, and the app will analyze it, categorizing transactions and presenting them in a clean, copyable CSV format.",
   "requestFramePermissions": [
-    "camera"
+    "camera",
+    "microphone"
   ]
 }

@@ -125,6 +125,42 @@ export const generateFinancialInsights = async (transactions: Transaction[]): Pr
     return response.text;
 }
 
+export const createFinancialChat = (transactions: Transaction[]) => {
+    if (!process.env.API_KEY) {
+        throw new Error("API Key missing");
+    }
+    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+    
+    // Create a concise CSV-like context to save tokens while maintaining readability
+    const transactionContext = transactions.map(t => 
+        `ID:${t.id.substring(0,4)}|${t.Date}|${t.Description}|${t.Amount}|${t.Category}|Sub:${t.IsSubscription}`
+    ).join('\n');
+
+    const systemInstruction = `You are a dedicated financial assistant for the "FinAI Cashbook" app.
+    You have direct access to the user's transaction data (CSV format: ID|Date|Desc|Amount|Cat|Sub).
+    
+    DATA:
+    ${transactionContext}
+    
+    CAPABILITIES:
+    1. Filter data by specific dates (YYYY-MM-DD), ranges, or natural language (e.g. "last month").
+    2. Filter by category or description keywords.
+    3. Calculate totals, averages, and identify min/max transactions.
+    
+    RULES:
+    - Answers must be derived ONLY from the provided data.
+    - If asked about specific transactions, list them with Date, Description and Amount.
+    - Be concise. Use markdown tables for lists of transactions.
+    - If no data matches the query, explicitly say "No matching transactions found in your records."`;
+
+    return ai.chats.create({
+        model: 'gemini-3-pro-preview',
+        config: {
+            systemInstruction: systemInstruction,
+        }
+    });
+};
+
 export const analyzeStatements = async (
   statementFiles: File[],
   onProgress: (processedCount: number, total: number, status: string) => void

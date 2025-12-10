@@ -9,6 +9,7 @@ import AuthScreen from './components/AuthScreen';
 import Analytics from './components/Analytics';
 import ManualEntryModal from './components/ManualEntryModal';
 import NavBar from './components/NavBar';
+import ChatBot from './components/ChatBot';
 import { analyzeStatements, generateFinancialInsights } from './services/geminiService';
 import { CURRENCIES } from './currency';
 
@@ -313,6 +314,9 @@ const App: React.FC = () => {
             onClose={() => setIsManualModalOpen(false)}
             onAdd={handleManualAdd}
         />
+        
+        {/* Chat Bot Widget */}
+        <ChatBot transactions={transactions} />
 
         <footer className="text-center mt-20 mb-8 text-gray-600 text-xs tracking-wider uppercase">
           <p>Secured by Gemini AI • Powered by Sachin Singh</p>
