@@ -51,10 +51,11 @@ const transactionSchema = {
         Date: { type: Type.STRING, description: 'Transaction date in YYYY-MM-DD format.' },
         Description: { type: Type.STRING, description: 'A concise description of the transaction.' },
         Amount: { type: Type.NUMBER, description: 'Transaction amount. Negative for expenses, positive for deposits.' },
-        Category: { type: Type.STRING, description: 'Auto-detected category (e.g., Groceries, Dining, Salary).' },
+        Category: { type: Type.STRING, description: 'Auto-detected category (e.g., Groceries, Dining, Salary, Subscription).' },
         Notes: { type: Type.STRING, description: 'Any relevant details about the transaction.' },
+        IsSubscription: { type: Type.BOOLEAN, description: 'True if this appears to be a recurring subscription (Netflix, Spotify, Gym, Utilities, etc).'},
     },
-    required: ['Date', 'Description', 'Amount', 'Category']
+    required: ['Date', 'Description', 'Amount', 'Category', 'IsSubscription']
 };
 
 export const verifyUserIdentity = async (referenceImageBase64: string, currentImageBase64: string): Promise<boolean> => {
@@ -96,6 +97,34 @@ export const verifyUserIdentity = async (referenceImageBase64: string, currentIm
     }
 };
 
+export const generateFinancialInsights = async (transactions: Transaction[]): Promise<string> => {
+     if (!process.env.API_KEY) {
+        return "API Key missing, cannot generate insights.";
+    }
+    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+
+    // Summarize data to save tokens
+    const summaryData = transactions.map(t => `${t.Date}: ${t.Description} (${t.Amount}) [${t.Category}]`).join('\n');
+
+    const prompt = `Analyze these transactions and provide a "Financial Health Snapshot". 
+    1. Identify the biggest spending category.
+    2. Point out any unusual or high-value expenses.
+    3. Give one actionable tip for saving money based on this data.
+    Keep the tone professional but friendly. Keep it under 100 words. Use formatting like bullet points.`;
+
+    const response = await ai.models.generateContent({
+        model: 'gemini-2.5-flash',
+        contents: {
+            parts: [
+                { text: prompt },
+                { text: summaryData }
+            ]
+        }
+    });
+
+    return response.text;
+}
+
 export const analyzeStatements = async (
   statementFiles: File[],
   onProgress: (processedCount: number, total: number, status: string) => void
@@ -130,7 +159,14 @@ export const analyzeStatements = async (
 
     onProgress(processedCount, totalFiles, `Analyzing with Gemini...`);
 
-    const prompt = `You are an expert financial analyst. Analyze the provided bank statement image(s). These images may represent multiple pages of a single statement or multiple statements. Extract every single transaction across all images. For each transaction, determine the date, a concise description, the amount (use a negative sign for debits/expenses and a positive sign for credits/deposits), and categorize it (e.g., Groceries, Dining, Transport, Salary, Bills, Shopping, Entertainment, Other). Provide any relevant details in a 'Notes' field. Ignore all non-transactional information like headers, footers, summaries, and promotional text. Ensure the date is in YYYY-MM-DD format. Provide the output as a JSON object with a single key 'transactions' which is an array of all transaction objects found, adhering to the provided schema.`;
+    const prompt = `You are an expert financial analyst. Analyze the provided bank statement image(s). Extract every single transaction. 
+    
+    CRITICAL INSTRUCTIONS:
+    1. Determine the date (YYYY-MM-DD), description, amount (negative for expenses), and category.
+    2. DETECT SUBSCRIPTIONS: Look for recurring services like Netflix, Spotify, Gym, Cloud Storage, Utilities, Internet. Set 'IsSubscription' to true for these.
+    3. Ignore headers/footers.
+    
+    Provide output as JSON.`;
     
     const contents = {
         parts: [
@@ -162,7 +198,10 @@ export const analyzeStatements = async (
     try {
         const jsonResponse = JSON.parse(response.text);
         if (jsonResponse.transactions && Array.isArray(jsonResponse.transactions)) {
-            const sortedTransactions = (jsonResponse.transactions as Transaction[]).sort((a, b) => {
+            const sortedTransactions = (jsonResponse.transactions as Transaction[]).map(t => ({
+                ...t,
+                id: crypto.randomUUID() // Assign ID for local management
+            })).sort((a, b) => {
                 const dateA = new Date(a.Date).getTime();
                 const dateB = new Date(b.Date).getTime();
                 if (isNaN(dateA) || isNaN(dateB)) return 0;

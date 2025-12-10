@@ -1,7 +1,7 @@
 
-import React from 'react';
+import React, { useMemo } from 'react';
 import { Transaction, CurrencyCode } from '../types';
-import { NumberIcon, ArrowUpIcon, ArrowDownIcon } from './icons';
+import { NumberIcon, ArrowUpIcon, ArrowDownIcon, CheckIcon } from './icons';
 import { formatAmount } from '../currency';
 
 interface TransactionSummaryProps {
@@ -9,50 +9,128 @@ interface TransactionSummaryProps {
   currency: CurrencyCode;
 }
 
-const SummaryCard: React.FC<{ title: string; value: string; icon: React.ReactNode; colorClass?: string }> = ({ title, value, icon, colorClass = 'text-gray-200' }) => (
-    <div className="bg-gray-800/70 p-6 rounded-lg flex items-center space-x-4 border border-gray-700/50 hover:border-gray-600 transition-colors duration-300">
-        <div className="p-3 rounded-full bg-gray-700 shadow-inner">
-            {icon}
+const SummaryCard: React.FC<{ 
+    title: string; 
+    value: string; 
+    icon?: React.ReactNode; 
+    subtext?: string; 
+    gradientFrom: string; 
+    gradientTo: string;
+    colSpan?: string; 
+}> = ({ title, value, icon, subtext, gradientFrom, gradientTo, colSpan = "" }) => (
+    <div className={`relative overflow-hidden p-5 rounded-2xl border border-white/5 backdrop-blur-md shadow-lg group ${colSpan} flex flex-col justify-between`}>
+        {/* Gradient Background */}
+        <div className={`absolute inset-0 bg-gradient-to-br ${gradientFrom} ${gradientTo} opacity-10 group-hover:opacity-15 transition-opacity duration-500`}></div>
+        
+        <div className="relative z-10 flex items-start justify-between">
+            <div>
+                <p className="text-xs text-gray-400 font-bold uppercase tracking-wider mb-1">{title}</p>
+                <p className="text-2xl sm:text-3xl font-black text-white tracking-tight">{value}</p>
+            </div>
+            {icon && (
+                <div className="p-2.5 rounded-xl bg-white/5 border border-white/5 text-white/80">
+                    {icon}
+                </div>
+            )}
         </div>
-        <div>
-            <p className="text-sm text-gray-400 font-medium">{title}</p>
-            <p className={`text-2xl font-bold tracking-tight ${colorClass}`}>{value}</p>
-        </div>
+        {subtext && <p className="relative z-10 text-xs text-gray-500 mt-2 font-medium">{subtext}</p>}
     </div>
 );
 
 const TransactionSummary: React.FC<TransactionSummaryProps> = ({ transactions, currency }) => {
-  if (transactions.length === 0) {
-    return null;
-  }
+  const stats = useMemo(() => {
+    const now = new Date();
+    const startOfWeek = new Date(now.getFullYear(), now.getMonth(), now.getDate() - now.getDay());
+    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
 
-  const totalTransactions = transactions.length;
-  const totalIncome = transactions
-    .filter(t => t.Amount > 0)
-    .reduce((sum, t) => sum + t.Amount, 0);
-  const totalSpending = transactions
-    .filter(t => t.Amount < 0)
-    .reduce((sum, t) => sum + t.Amount, 0);
+    let totalIncome = 0;
+    let totalSpending = 0;
+    let subCount = 0;
+    let subTotal = 0;
+    let spentThisWeek = 0;
+    let spentThisMonth = 0;
+
+    transactions.forEach(t => {
+        const amount = t.Amount;
+        const date = new Date(t.Date);
+        
+        if (amount > 0) {
+            totalIncome += amount;
+        } else {
+            const expense = Math.abs(amount);
+            totalSpending += expense;
+            
+            // Time periods
+            if (date >= startOfWeek) spentThisWeek += expense;
+            if (date >= startOfMonth) spentThisMonth += expense;
+        }
+
+        if (t.IsSubscription) {
+            subCount++;
+            subTotal += Math.abs(amount);
+        }
+    });
+
+    const balance = totalIncome - totalSpending;
+
+    return { totalIncome, totalSpending, balance, subCount, subTotal, spentThisWeek, spentThisMonth };
+  }, [transactions]);
 
   return (
-    <div className="w-full mb-8 animate-fade-in">
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
+    <div className="w-full animate-fade-in h-full flex flex-col space-y-4">
+        {/* Main Balance Row */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <SummaryCard 
-                title="Total Transactions"
-                value={totalTransactions.toString()}
-                icon={<NumberIcon className="w-6 h-6 text-blue-400" />}
+                title="Current Balance"
+                value={formatAmount(stats.balance, currency)}
+                icon={<NumberIcon className={`w-6 h-6 ${stats.balance >= 0 ? 'text-blue-400' : 'text-red-400'}`} />}
+                gradientFrom={stats.balance >= 0 ? "from-blue-600" : "from-red-900"}
+                gradientTo={stats.balance >= 0 ? "to-cyan-900" : "to-red-950"}
+                colSpan="md:col-span-1"
+            />
+             <SummaryCard 
+                title="Total Cash In"
+                value={formatAmount(stats.totalIncome, currency)}
+                icon={<ArrowUpIcon className="w-6 h-6 text-emerald-400" />}
+                gradientFrom="from-emerald-600"
+                gradientTo="to-green-900"
             />
             <SummaryCard 
-                title="Total Income"
-                value={formatAmount(totalIncome, currency)}
-                icon={<ArrowUpIcon className="w-6 h-6 text-green-400" />}
-                colorClass="text-green-400"
+                title="Total Cash Out"
+                value={formatAmount(stats.totalSpending, currency)}
+                icon={<ArrowDownIcon className="w-6 h-6 text-rose-400" />}
+                gradientFrom="from-rose-600"
+                gradientTo="to-red-900"
+            />
+        </div>
+
+        {/* Detailed Stats Row */}
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+            <SummaryCard 
+                title="Spent This Week"
+                value={formatAmount(stats.spentThisWeek, currency)}
+                gradientFrom="from-orange-600"
+                gradientTo="to-amber-900"
             />
             <SummaryCard 
-                title="Total Spending"
-                value={formatAmount(Math.abs(totalSpending), currency)}
-                icon={<ArrowDownIcon className="w-6 h-6 text-red-400" />}
-                colorClass="text-red-400"
+                title="Spent This Month"
+                value={formatAmount(stats.spentThisMonth, currency)}
+                gradientFrom="from-pink-600"
+                gradientTo="to-purple-900"
+            />
+            <SummaryCard 
+                title="Subscriptions"
+                value={stats.subCount.toString()}
+                subtext={`Est. ${formatAmount(stats.subTotal, currency)}`}
+                gradientFrom="from-purple-600"
+                gradientTo="to-indigo-900"
+            />
+             <SummaryCard 
+                title="Net Flow"
+                value={formatAmount(stats.balance, currency)}
+                subtext="All Time"
+                gradientFrom="from-gray-700"
+                gradientTo="to-gray-900"
             />
         </div>
     </div>
